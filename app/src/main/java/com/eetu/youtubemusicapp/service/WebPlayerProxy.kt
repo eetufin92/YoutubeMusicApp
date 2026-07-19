@@ -54,9 +54,14 @@ class WebPlayerProxy(private val webView: WebView) : SimpleBasePlayer(Looper.get
     }
 
     fun updateMetadata(title: String, artist: String, album: String, artworkUrl: String) {
+        val cleanedTitle = title
+            .replace("\\s*[|\\-—]\\s*YouTube\\s+Music".toRegex(RegexOption.IGNORE_CASE), "")
+            .trim()
+            .ifEmpty { title }
+
         this.currentMetadata = MediaMetadata.Builder()
-            .setTitle(title)
-            .setDisplayTitle(title)
+            .setTitle(cleanedTitle)
+            .setDisplayTitle(cleanedTitle)
             .setArtist(artist)
             .setAlbumTitle(album)
             .setArtworkUri(android.net.Uri.parse(artworkUrl))
