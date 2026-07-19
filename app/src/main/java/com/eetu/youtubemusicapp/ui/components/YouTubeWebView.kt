@@ -98,14 +98,7 @@ fun YouTubeWebView(
                     
                     com.eetu.youtubemusicapp.service.PlaybackService.playerProxy = playerProxy
 
-                    webChromeClient = object : WebChromeClient() {
-                        override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                            super.onProgressChanged(view, newProgress)
-                            if (newProgress > 10) {
-                                injectScripts(view)
-                            }
-                        }
-                    }
+                    webChromeClient = WebChromeClient()
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(
                             view: WebView?,
@@ -125,11 +118,15 @@ fun YouTubeWebView(
                             errorMessage = null
 
                             isDarkThemePage = url?.contains("music.youtube.com") == true
-                            injectScripts(view)
 
                             if (url != null && shouldRedirectToMusic(url)) {
                                 view?.loadUrl(getRedirectedUrl(url))
                             }
+                        }
+
+                        override fun onPageCommitVisible(view: WebView?, url: String?) {
+                            super.onPageCommitVisible(view, url)
+                            injectScripts(view)
                         }
 
                         override fun onPageFinished(view: WebView?, url: String?) {
