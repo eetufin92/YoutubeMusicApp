@@ -289,30 +289,32 @@ private fun injectScripts(webView: WebView?) {
 
                 // Fallback to DOM scraping if metadata is empty or generic
                 var isGenericTitle = !title || title === "Home" || title === "YouTube Music" || title === "Advertisement";
-                if (isGenericTitle && !isAd) {
-                    var titleEl = document.querySelector('ytm-player-bar .title, .ytmusic-player-bar .title, yt-formatted-string.title, .title.ytmusic-player-bar, .content-info-wrapper .title');
-                    if (titleEl) title = titleEl.textContent.trim();
-                    
-                    if (!title || title === "YouTube Music") {
-                        // Use document.title as last resort
-                        var docTitle = document.title || "";
-                        if (docTitle && docTitle !== "YouTube Music") {
-                            var parts = docTitle.split(" - ");
-                            if (parts.length > 0 && parts[0] !== "YouTube Music" && parts[0] !== "Home") {
-                                title = parts[0];
-                            }
-                        }
+                var playerBar = document.querySelector('ytmusic-player-bar, ytm-player-bar, ytm-player-bar-renderer, #player-bar, .ytmusic-player-bar');
+                
+                if (playerBar && !isAd) {
+                    if (isGenericTitle) {
+                        var titleEl = playerBar.querySelector('.title, .song-title, [class*="title"]');
+                        if (titleEl) title = titleEl.textContent.trim();
+                    }
+                    if (!artist) {
+                        var artistEl = playerBar.querySelector('.byline, .artist, .subtitle, a');
+                        if (artistEl) artist = artistEl.textContent.trim();
+                    }
+                    if (!artwork) {
+                        var imgEl = playerBar.querySelector('img, #song-image img');
+                        if (imgEl) artwork = imgEl.src;
                     }
                 }
                 
-                if ((!artist || artist.includes("Video will play after ad")) && !isAd) {
-                    var artistEl = document.querySelector('.ytmusic-player-bar .byline, .subtitle.ytmusic-player-bar, .byline.ytmusic-player-bar');
-                    if (artistEl) artist = artistEl.textContent.trim();
-                }
-                
-                if (!artwork && !isAd) {
-                    var imgEl = document.querySelector('.ytmusic-player-bar img, #song-image img');
-                    if (imgEl) artwork = imgEl.src;
+                if (!isAd && (isGenericTitle || !title || title === "YouTube Music" || title === "Home")) {
+                    // Use document.title as last resort
+                    var docTitle = document.title || "";
+                    if (docTitle && docTitle !== "YouTube Music" && docTitle !== "Home") {
+                        var parts = docTitle.split(" - ");
+                        if (parts.length > 0 && parts[0] !== "YouTube Music" && parts[0] !== "Home") {
+                            title = parts[0];
+                        }
+                    }
                 }
 
                 if (isAd) {

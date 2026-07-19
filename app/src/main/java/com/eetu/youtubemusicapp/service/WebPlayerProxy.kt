@@ -42,6 +42,7 @@ class WebPlayerProxy(private val webView: WebView) : SimpleBasePlayer(Looper.get
             .setContentPositionMs(currentPosMs)
             .setPlaylist(listOf(mediaItemData))
             .setPlaylistMetadata(currentMetadata)
+            .setCurrentMediaItemIndex(0)
             .build()
     }
 
@@ -55,6 +56,7 @@ class WebPlayerProxy(private val webView: WebView) : SimpleBasePlayer(Looper.get
     fun updateMetadata(title: String, artist: String, album: String, artworkUrl: String) {
         this.currentMetadata = MediaMetadata.Builder()
             .setTitle(title)
+            .setDisplayTitle(title)
             .setArtist(artist)
             .setAlbumTitle(album)
             .setArtworkUri(android.net.Uri.parse(artworkUrl))
