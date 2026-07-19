@@ -47,7 +47,13 @@ fun YouTubeWebView(
                 .fillMaxSize()
                 .background(Color.Black),
             factory = { ctx ->
-                WebView(ctx).apply {
+                object : WebView(ctx) {
+                    override fun onWindowVisibilityChanged(visibility: Int) {
+                        if (visibility != android.view.View.GONE) {
+                            super.onWindowVisibilityChanged(visibility)
+                        }
+                    }
+                }.apply {
                     setBackgroundColor(android.graphics.Color.BLACK)
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
