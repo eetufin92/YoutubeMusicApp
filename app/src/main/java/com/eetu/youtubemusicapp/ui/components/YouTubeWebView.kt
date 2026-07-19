@@ -3,14 +3,17 @@ package com.eetu.youtubemusicapp.ui.components
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -39,14 +42,15 @@ fun YouTubeWebView(
     modifier: Modifier = Modifier,
     onWebViewCreated: (WebView) -> Unit = {}
 ) {
+    val isSystemDarkTheme = isSystemInDarkTheme()
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var webViewInstance by remember { mutableStateOf<WebView?>(null) }
     var isDarkThemePage by remember { mutableStateOf(true) }
 
     val systemBackgroundColor = MaterialTheme.colorScheme.background
-    val backgroundColor = if (isDarkThemePage) Color.Black else systemBackgroundColor
-    val webViewBackgroundColor = if (isDarkThemePage) android.graphics.Color.BLACK else systemBackgroundColor.toArgb()
+    val backgroundColor = if (isDarkThemePage) Color.Black else Color.White
+    val webViewBackgroundColor = if (isDarkThemePage) android.graphics.Color.BLACK else android.graphics.Color.WHITE
 
     Box(modifier = modifier.fillMaxSize().background(backgroundColor)) {
         AndroidView(
@@ -117,7 +121,7 @@ fun YouTubeWebView(
                             isLoading = true
                             errorMessage = null
 
-                            isDarkThemePage = url?.contains("music.youtube.com") == true
+                            isDarkThemePage = url != null && Uri.parse(url).host?.equals("music.youtube.com", ignoreCase = true) == true
 
                             if (url != null && shouldRedirectToMusic(url)) {
                                 view?.loadUrl(getRedirectedUrl(url))
@@ -126,13 +130,13 @@ fun YouTubeWebView(
 
                         override fun onPageCommitVisible(view: WebView?, url: String?) {
                             super.onPageCommitVisible(view, url)
-                            injectScripts(view)
+                            injectScripts(view, isSystemDarkTheme)
                         }
 
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
                             isLoading = false
-                            injectScripts(view)
+                            injectScripts(view, isSystemDarkTheme)
                         }
 
                         override fun onReceivedError(
@@ -215,7 +219,12 @@ fun YouTubeWebView(
                         onClick = {
                             errorMessage = null
                             isLoading = true
-                            webViewInstance?.reload()
+                            val currentUrl = webViewInstance?.url
+                            if (currentUrl.isNullOrEmpty() || currentUrl == "about:blank") {
+                                webViewInstance?.loadUrl("https://music.youtube.com")
+                            } else {
+                                webViewInstance?.reload()
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
@@ -238,7 +247,7 @@ fun YouTubeWebView(
     }
 }
 
-private fun injectScripts(webView: WebView?) {
+private fun injectScripts(webView: WebView?, isSystemDarkTheme: Boolean) {
     val css = """
         ytm-mealbar-promo-renderer,
         .ytm-mealbar-promo-renderer,
@@ -314,6 +323,13 @@ private fun injectScripts(webView: WebView?) {
             if (window._promo_script_injected) return;
             window._promo_script_injected = true;
 
+            // Pass system dark mode preference via dark attribute on html element
+            if ($isSystemDarkTheme) {
+                document.documentElement.setAttribute('dark', 'true');
+            } else {
+                document.documentElement.removeAttribute('dark');
+            }
+
             // 1. Inject CSS using textContent to bypass Trusted Types policy
             var styleId = 'ytm-cosmetic-overrides';
             var style = document.getElementById(styleId);
@@ -374,11 +390,6 @@ private fun injectScripts(webView: WebView?) {
             var lastIsAd = false;
 
             var sync = function() {
-                // If a menu is open, we might want to delay sync to prevent UI refresh
-                if (document.querySelector('ytm-menu-renderer, .ytd-menu-popup-renderer')) {
-                    return;
-                }
-
                 var video = document.querySelector('video');
                 var adElement = document.querySelector('.ad-showing, .ad-interrupting');
                 var isAd = !!adElement;
@@ -496,6 +507,12 @@ private fun shouldRedirectToMusic(url: String): Boolean {
     val uri = Uri.parse(url)
     val host = uri.host ?: return false
     val path = uri.path ?: ""
+
+    // Exclude cookie consent and account subdomains to prevent redirection loops
+    if (host.equals("consent.youtube.com", ignoreCase = true) ||
+        host.equals("accounts.youtube.com", ignoreCase = true)) {
+        return false
+    }
 
     // Check if host is a YouTube domain but NOT YouTube Music
     val isYouTubeHost = (host == "youtube.com" || host.endsWith(".youtube.com")) &&
